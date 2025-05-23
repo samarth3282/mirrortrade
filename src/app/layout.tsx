@@ -1,18 +1,13 @@
 import type {Metadata} from 'next';
-import { GeistSans as Geist, GeistMono } from 'next/font/google';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { AppProviders } from '@/components/mirror-trade/app-providers';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = GeistMono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
+// Removed incorrect font initializations:
+// const geistSans = GeistSans({ ... });
+// const geistMono = GeistMono({ ... });
 
 export const metadata: Metadata = {
   title: 'MirrorTrade',
@@ -25,8 +20,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className={`font-sans antialiased`}>
         <AppProviders>
           {children}
           <Toaster />
