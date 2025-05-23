@@ -1,5 +1,7 @@
+
 "use client";
 
+import * as React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +48,12 @@ function getRiskLevelVariant(riskLevel?: string): "default" | "secondary" | "des
 
 export function TradeCard({ trade, isFriendTrade, onReplicate }: TradeCardProps) {
   const tradeValue = trade.price * trade.quantity;
+  const [formattedDate, setFormattedDate] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    // Format date on client-side after hydration
+    setFormattedDate(format(new Date(trade.timestamp), "MMM dd, yyyy HH:mm"));
+  }, [trade.timestamp]);
 
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-200">
@@ -72,7 +80,8 @@ export function TradeCard({ trade, isFriendTrade, onReplicate }: TradeCardProps)
         </div>
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>Date:</span>
-          <span>{format(new Date(trade.timestamp), "MMM dd, yyyy HH:mm")}</span>
+          {/* Display formatted date once available, or a placeholder */}
+          <span>{formattedDate || "Loading date..."}</span>
         </div>
         {trade.riskAssessment && (
           <div className="mt-2 p-3 bg-muted/50 rounded-md border border-dashed">
