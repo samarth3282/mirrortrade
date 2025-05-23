@@ -1,48 +1,38 @@
+
 import type { Trade, UserSettings } from "./types";
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
-  userApiKey: "",
-  friendApiKey: "",
-  tradeSizeLimit: 1000, // Default limit of $1000 per trade
   accountBalance: 50000, // Default account balance of $50,000
-  tradeHistory: "Initial account setup. No prior trades.",
-  marketConditions: "Market conditions are currently stable with low volatility.",
 };
 
 export const MOCK_FRIEND_TRADES: Trade[] = [
   { 
     id: "FT001", 
-    ticker: "AAPL", 
+    ticker: "NIFTY_FUT_JUL", 
     action: "BUY", 
-    quantity: 10, 
-    price: 170.00, 
+    quantity: 1, 
+    price: 23500.00, 
     timestamp: Date.now() - 3600000 * 2, // 2 hours ago
-    status: "PENDING_RISK_ASSESSMENT"
+    status: "PENDING_USER_ACTION"
   },
   { 
     id: "FT002", 
-    ticker: "MSFT", 
+    ticker: "BANKNIFTY_OPT_25JUL24_48000CE", 
     action: "BUY", 
-    quantity: 5, 
-    price: 420.50, 
+    quantity: 2, 
+    price: 150.50, 
     timestamp: Date.now() - 3600000 * 1, // 1 hour ago
-    status: "PENDING_RISK_ASSESSMENT"
+    status: "PENDING_USER_ACTION"
   },
   { 
     id: "FT003", 
-    ticker: "GOOGL", 
+    ticker: "NIFTY_FUT_JUL", 
     action: "SELL", 
-    quantity: 7, 
-    price: 155.25, 
+    quantity: 1, 
+    price: 23550.25, 
     timestamp: Date.now() - 3600000 * 0.5, // 30 mins ago
-    status: "PENDING_RISK_ASSESSMENT"
+    status: "PENDING_USER_ACTION"
   },
 ];
 
-export const MOCK_MARKET_CONDITIONS_OPTIONS = [
-  "Market conditions are currently stable with low volatility.",
-  "Market is experiencing moderate volatility with mixed signals.",
-  "High volatility expected due to upcoming economic announcements.",
-  "Bearish sentiment dominates the market.",
-  "Bullish sentiment is strong across major indices."
-];
+// Removed MOCK_MARKET_CONDITIONS_OPTIONS as it's no longer needed.

@@ -3,7 +3,7 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card components
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingDown, TrendingUp, CheckCircle, XCircle } from "lucide-react";
 import type { Trade } from "@/lib/types";
 
@@ -78,7 +78,7 @@ export function ConfirmTradeModal({ isOpen, onClose, trade, onConfirmDecision }:
           </Button>
           <Button 
             onClick={handleAccept}
-            className="bg-green-600 hover:bg-green-700 text-white" // Custom accept button style
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
             <CheckCircle size={16} className="mr-2"/>
             Accept & Replicate

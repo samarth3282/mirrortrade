@@ -1,27 +1,14 @@
-import type { AssessTradeRiskOutput } from "@/ai/flows/risk-assessment";
-
-export interface ApiKeyConfig {
-  userApiKey: string;
-  friendApiKey: string;
-}
 
 export interface Trade {
   id: string;
-  ticker: string;
+  ticker: string; // Will represent index trades, e.g., "NIFTY_FUT", "BANKNIFTY_OPT_CE_21000"
   action: 'BUY' | 'SELL';
   quantity: number;
   price: number;
   timestamp: number; // Unix timestamp
-  status?: 'PENDING_RISK_ASSESSMENT' | 'PENDING_REPLICATION' | 'COMPLETED' | 'REJECTED' | 'FAILED';
-  riskAssessment?: AssessTradeRiskOutput;
+  status?: 'PENDING_USER_ACTION' | 'COMPLETED' | 'REJECTED' | 'FAILED';
 }
 
-export interface UserSettings extends ApiKeyConfig {
-  tradeSizeLimit: number;
+export interface UserSettings {
   accountBalance: number;
-  tradeHistory: string; // A summary string
-  marketConditions: string; // A descriptive string like "Stable", "Volatile"
 }
-
-// Re-export AI types for easier access
-export type { AssessTradeRiskInput, AssessTradeRiskOutput } from "@/ai/flows/risk-assessment";
