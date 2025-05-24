@@ -4,7 +4,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { UserSettings, Trade } from '@/lib/types';
-import { DEFAULT_USER_SETTINGS, MOCK_FRIEND_TRADES } from '@/lib/constants';
+import { DEFAULT_USER_SETTINGS } from '@/lib/constants'; // MOCK_FRIEND_TRADES removed, will be fetched from API
 
 interface AppState extends UserSettings {
   friendTrades: Trade[];
@@ -15,7 +15,7 @@ interface AppState extends UserSettings {
   isRealtimeConnected: boolean; // To track connection status
 
   // Actions
-  initializeRealtimeConnection: () => void; // For WebSocket or SSE
+  initializeRealtimeConnection: () => (() => void); // Returns a cleanup function
   fetchFriendTrades: () => Promise<void>;
   fetchAccountBalance: () => Promise<void>;
   executeTrade: (trade: Trade) => Promise<boolean>;
@@ -29,16 +29,16 @@ interface AppState extends UserSettings {
   setAccountBalance: (balance: number) => void; 
 }
 
-// Helper function to simulate API calls - replace with actual fetch calls to your backend
-async function apiCall<T>(endpoint: string, options?: RequestInit, mockData?: T, delay = 1000): Promise<T> {
-  console.log(`Simulating API call to /api/${endpoint}`, options); // Prefix with /api/ to simulate a backend route
-  await new Promise(resolve => setTimeout(resolve, delay));
-  // In a real app, you would fetch from your backend:
-  // const response = await fetch(`/api/${endpoint}`, options);
-  // if (!response.ok) throw new Error('Network response was not ok');
-  // return response.json();
-  if (mockData !== undefined) return mockData;
-  throw new Error('Mock data not provided for API call simulation');
+// Helper to make actual API calls to Next.js API routes
+async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  console.log(`Calling API: ${endpoint}`, options);
+  const response = await fetch(endpoint, options);
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`API Error (${response.status}) for ${endpoint}: ${errorBody}`);
+    throw new Error(`Network response was not ok for ${endpoint}. Status: ${response.status}. Body: ${errorBody}`);
+  }
+  return response.json();
 }
 
 
@@ -60,21 +60,23 @@ export const useAppStore = create<AppState>()(
         set({ isRealtimeConnected: false }); // Reset on new attempt
 
         // REAL IMPLEMENTATION:
-        // const socket = new WebSocket('wss://your-backend-websocket-url.com/trades');
+        // This is where you would establish a WebSocket connection to your backend.
+        // const socket = new WebSocket('wss://your-backend-websocket-url.com/trades_stream');
         //
         // socket.onopen = () => {
-        //   console.log('Real-time connection established.');
+        //   console.log('Real-time connection established with backend.');
         //   set({ isRealtimeConnected: true });
-        //   // Optionally, request initial data or confirm subscription
-        //   // socket.send(JSON.stringify({ action: 'subscribeToFriendTrades', friendApiKey: get().friendApiKey }));
+        //   // You might send an authentication message or subscribe to specific topics here
+        //   // For example: socket.send(JSON.stringify({ action: 'subscribeToFriendTrades', friendApiKey: 'FRIENDS_IDENTIFIER_TOKEN' }));
         // };
         //
         // socket.onmessage = (event) => {
         //   try {
-        //     const newTrade = JSON.parse(event.data as string);
+        //     const newTrade = JSON.parse(event.data as string) as Trade;
         //     if (newTrade && newTrade.id && newTrade.ticker) { // Basic validation
-        //       console.log('New trade received via real-time:', newTrade);
-        //       get().addNewFriendTrade(newTrade);
+        //       console.log('New trade received via real-time from backend:', newTrade);
+        //       // Ensure new trades from real-time also get PENDING_USER_ACTION status
+        //       get().addNewFriendTrade({ ...newTrade, status: newTrade.status || 'PENDING_USER_ACTION' });
         //     }
         //   } catch (error) {
         //     console.error('Error processing real-time message:', error);
@@ -89,29 +91,32 @@ export const useAppStore = create<AppState>()(
         // socket.onclose = () => {
         //   console.log('Real-time connection closed.');
         //   set({ isRealtimeConnected: false });
-        //   // Implement reconnection logic if needed
+        //   // Implement reconnection logic if needed, e.g., with exponential backoff.
         // };
         //
+        // // Return a cleanup function to close the socket when the component/app unmounts
         // return () => {
-        //   socket.close();
+        //   if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+        //     socket.close();
+        //   }
         // };
 
         // MOCK IMPLEMENTATION (Simulate receiving trades periodically)
-        // This is just for demonstration. Remove in a real app.
+        // This should be replaced by the actual WebSocket logic above.
         set({ isRealtimeConnected: true }); // Assume connection for mock
         console.log("Mock Real-time connection 'established'. Simulating trade reception.");
         const mockInterval = setInterval(() => {
           if (Math.random() < 0.3) { // Simulate a new trade arriving
             const mockTrade: Trade = {
               id: `RT-${Date.now()}`,
-              ticker: Math.random() > 0.5 ? "NIFTY_FUT_SEP" : "BANKNIFTY_OPT_30JUL24_49000PE",
+              ticker: Math.random() > 0.5 ? "NIFTY_FUT_AUG" : "BANKNIFTY_OPT_15AUG24_50000CE",
               action: Math.random() > 0.5 ? "BUY" : "SELL",
               quantity: Math.floor(Math.random() * 5) + 1,
-              price: Math.floor(Math.random() * 1000) + 23000,
+              price: Math.floor(Math.random() * 1000) + 24000,
               timestamp: Date.now(),
               status: 'PENDING_USER_ACTION'
             };
-            console.log('Simulated new trade received:', mockTrade);
+            console.log('Simulated new trade received (mock):', mockTrade);
             get().addNewFriendTrade(mockTrade);
           }
         }, 15000); // Simulate a potential new trade every 15 seconds
@@ -128,8 +133,7 @@ export const useAppStore = create<AppState>()(
         set((state) => {
           const existingTrade = state.friendTrades.find(t => t.id === trade.id);
           if (!existingTrade) {
-            // Ensure new trades also get a PENDING_USER_ACTION status if not provided
-            return { friendTrades: [{ ...trade, status: trade.status || 'PENDING_USER_ACTION' }, ...state.friendTrades] };
+            return { friendTrades: [{ ...trade, status: trade.status || 'PENDING_USER_ACTION' }, ...state.friendTrades].sort((a,b) => b.timestamp - a.timestamp) };
           }
           return {}; // Trade already exists, no change
         });
@@ -138,20 +142,11 @@ export const useAppStore = create<AppState>()(
       fetchAccountBalance: async () => {
         set({ isLoading: true });
         try {
-          // REAL IMPLEMENTATION: Call your backend
-          // const balanceData = await apiCall<{ balance: number }>('user/balance', { headers: { 'Authorization': `Bearer ${get().userApiKey}` } });
-          // set({ accountBalance: balanceData.balance });
-          
-          // MOCK IMPLEMENTATION
-          console.log("Placeholder: Fetching account balance from API. Using current store value.");
-          await new Promise(resolve => setTimeout(resolve, 500)); 
-          // For mock, we assume the balance is managed by trades or set initially.
-          // If you need to simulate fetching a new balance:
-          // const mockBalance = await apiCall<{balance: number}>('user/balance', {}, { balance: get().accountBalance + (Math.random() * 1000 - 500) });
-          // set({ accountBalance: mockBalance.balance });
-
+          const data = await fetchApi<{ balance: number }>('/api/user/balance');
+          set({ accountBalance: data.balance });
         } catch (error) {
-          console.error("Failed to fetch account balance:", error);
+          console.error("Failed to fetch account balance from API:", error);
+          // Potentially set an error state or show a toast to the user
         } finally {
           set({ isLoading: false });
         }
@@ -160,21 +155,21 @@ export const useAppStore = create<AppState>()(
       fetchFriendTrades: async () => {
         set({ isLoading: true });
         try {
-          // REAL IMPLEMENTATION: Call your backend for initial/missed trades
-          // const tradesFromApi = await apiCall<Trade[]>('trades/friend_pending', { headers: { 'Authorization': `Bearer ${get().userApiKey}` }}); // Pass necessary auth/identifiers
-          
-          // MOCK IMPLEMENTATION (for initial load if real-time isn't immediate or as fallback)
-          const tradesFromApi = await apiCall<Trade[]>('trades/friend_pending', {}, MOCK_FRIEND_TRADES.map(t => ({...t, status: t.status || 'PENDING_USER_ACTION' })));
+          const tradesFromApi = await fetchApi<Trade[]>('/api/trades/friend_pending');
           
           set((state) => {
             const currentTradeIds = new Set(state.friendTrades.map(t => t.id));
             const newTrades = tradesFromApi.filter(apiTrade => !currentTradeIds.has(apiTrade.id));
+            // Ensure all fetched trades have a default status if not provided
+            const allTrades = [...newTrades.map(t => ({ ...t, status: t.status || 'PENDING_USER_ACTION' })), ...state.friendTrades]
+                              .sort((a,b) => b.timestamp - a.timestamp);
             return {
-              friendTrades: [...newTrades.map(t => ({ ...t, status: t.status || 'PENDING_USER_ACTION' })), ...state.friendTrades],
+              friendTrades: allTrades,
             };
           });
         } catch (error) {
-          console.error("Failed to fetch friend trades:", error);
+          console.error("Failed to fetch friend trades from API:", error);
+          // Potentially set an error state or show a toast to the user
         } finally {
           set({ isLoading: false });
         }
@@ -184,46 +179,39 @@ export const useAppStore = create<AppState>()(
         set({ isLoading: true });
         const originalBalance = get().accountBalance;
         try {
-          // REAL IMPLEMENTATION: Call your backend
-          // const tradeExecutionData = { ...trade, userApiKey: get().userApiKey };
-          // const result = await apiCall<{ success: boolean; message?: string; newBalance?: number }>(
-          //   'trades/execute', 
-          //   { method: 'POST', body: JSON.stringify(tradeExecutionData), headers: {'Content-Type': 'application/json'} }
-          // );
-          // if (result.success) {
-          //   get().addReplicatedTrade(trade); // This is for UI update
-          //   get().updateFriendTradeStatus(trade.id, 'COMPLETED');
-          //   if (result.newBalance !== undefined) {
-          //      set({ accountBalance: result.newBalance });
-          //   } else {
-          //      get().fetchAccountBalance(); // Fallback to fetch if backend doesn't return new balance
-          //   }
-          //   return true;
-          // } else {
-          //   get().updateFriendTradeStatus(trade.id, 'FAILED');
-          //   console.error("Failed to execute trade on backend:", result.message);
-          //   return false;
-          // }
+          const result = await fetchApi<{ success: boolean; message?: string; newBalance?: number }>(
+            '/api/trades/execute', 
+            { 
+              method: 'POST', 
+              body: JSON.stringify(trade), 
+              headers: {'Content-Type': 'application/json'} 
+            }
+          );
 
-          // MOCK IMPLEMENTATION
-          console.log("Placeholder: Executing trade via API", trade);
-          await new Promise(resolve => setTimeout(resolve, 1000)); 
-          
-          const tradeCost = trade.price * trade.quantity;
-          if (trade.action === 'BUY' && originalBalance < tradeCost) {
-            console.error("Mock trade execution failed: Insufficient balance.");
+          if (result.success) {
+            get().addReplicatedTrade(trade); // This updates balance locally for mock based on trade action
+            get().updateFriendTradeStatus(trade.id, 'COMPLETED');
+            // If the backend provides the new balance, use it. Otherwise, refetch.
+            if (result.newBalance !== undefined) {
+               set({ accountBalance: result.newBalance });
+            } else {
+               // A real backend should provide the accurate new balance.
+               // For now, the addReplicatedTrade mock-updates it.
+               // If your backend doesn't return newBalance, you might need to call:
+               // get().fetchAccountBalance(); 
+            }
+            return true;
+          } else {
             get().updateFriendTradeStatus(trade.id, 'FAILED');
+            console.error("Failed to execute trade on backend (API response):", result.message);
             return false;
           }
 
-          get().addReplicatedTrade(trade); // Updates balance locally for mock
-          get().updateFriendTradeStatus(trade.id, 'COMPLETED');
-          return true;
-
         } catch (error) {
-          console.error("Error executing trade:", error);
+          console.error("Error executing trade via API:", error);
           get().updateFriendTradeStatus(trade.id, 'FAILED');
-          set({ accountBalance: originalBalance }); // Revert balance on error
+          // Consider if reverting balance here is always correct, depends on backend atomicity
+          // set({ accountBalance: originalBalance }); 
           return false;
         } finally {
           set({ isLoading: false });
@@ -237,10 +225,9 @@ export const useAppStore = create<AppState>()(
           timestamp: Date.now(),
           status: 'COMPLETED', 
         };
-        set((state) => ({ userTrades: [newTrade, ...state.userTrades] }));
+        set((state) => ({ userTrades: [newTrade, ...state.userTrades].sort((a,b) => b.timestamp - a.timestamp) }));
         
-        // This part should ideally be driven by the backend's response about the new balance.
-        // For mock, we'll update it directly.
+        // MOCK balance update. A real backend should be the source of truth for balance.
         const tradeValue = newTrade.price * newTrade.quantity;
         if (newTrade.action === 'BUY') {
           set((state) => ({ accountBalance: state.accountBalance - tradeValue }));
@@ -261,14 +248,12 @@ export const useAppStore = create<AppState>()(
       closeConfirmModal: () => set({ isConfirmModalOpen: false, tradeToConfirm: null }),
     }),
     {
-      name: 'mirror-trade-settings-v2', // Changed name to avoid conflicts if old state exists
+      name: 'mirror-trade-settings-v3-api', // Updated version name
       storage: createJSONStorage(() => localStorage), 
       partialize: (state) => ({ 
-        // Persist user specific settings if any, userTrades.
-        // Avoid persisting friendTrades as they should come from real-time/API.
-        // Avoid persisting isLoading, isConfirmModalOpen, tradeToConfirm, isRealtimeConnected.
         accountBalance: state.accountBalance, 
         userTrades: state.userTrades,
+        // friendTrades not persisted, fetched from API / real-time
       }),
     }
   )
