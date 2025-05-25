@@ -17,14 +17,14 @@ interface TradesListProps {
   maxHeight?: string;
 }
 
-export function TradesList({ title, trades, isFriendList, onReviewTrade, isLoading, maxHeight = "400px" }: TradesListProps) {
-  
+export function TradesList({ title, trades = [], isFriendList, onReviewTrade, isLoading, maxHeight = "400px" }: TradesListProps) {
+
   const Icon = isFriendList ? Users : UserSquare;
 
   return (
     <Card className="shadow-lg">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Icon size={24}/> {title}</CardTitle>
+        <CardTitle className="flex items-center gap-2"><Icon size={24} /> {title}</CardTitle>
         <CardDescription>
           {isFriendList ? "Trades from your friend pending your action." : "Trades replicated in your account."}
         </CardDescription>
@@ -43,7 +43,7 @@ export function TradesList({ title, trades, isFriendList, onReviewTrade, isLoadi
             {isFriendList && <p className="text-xs text-muted-foreground mt-1">Refresh to check for new trades from your friend.</p>}
           </div>
         ) : (
-          <ScrollArea style={{height: maxHeight}} className="pr-3">
+          <ScrollArea style={{ height: maxHeight }} className="pr-3">
             <div className="space-y-4">
               {trades.map((trade) => (
                 <TradeCard
